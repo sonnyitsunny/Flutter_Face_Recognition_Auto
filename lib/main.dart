@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
-
+import 'package:image/image.dart' as imageLib;
+import 'image_utils.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final cameras = await availableCameras();
@@ -60,15 +63,58 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       // 스트림 시작 및 타이머 설정
       _controller.startImageStream((CameraImage image) {
         // 이미지 처리 로직은 타이머 콜백에서 실행
+        processCameraImage(image);
+        
+        
+
+
       });
       _timer = Timer.periodic(Duration(seconds: 1), (timer) {
         // 타이머 콜백에서 프레임 이미지 처리
         // TODO: 여기서 이미지 처리 로직 구현
+        
+        
+        
+        
+  
         print("Received image frame");
       });
     }
     });
   }
+
+
+
+void processCameraImage(CameraImage cameraImage) {
+        // CameraImage를 imageLib.Image로 변환
+        imageLib.Image? convertedImage = ImageUtils.convertCameraImage(cameraImage);
+
+        if (convertedImage != null) {
+        // 이미지를 224x224 크기로 리사이즈
+        imageLib.Image resizedImage = imageLib.copyResize(convertedImage, width: 224, height: 224);
+        
+        // 224*224 되는지 확인
+        print("Resized image dimensions: ${resizedImage.width}x${resizedImage.height}");
+        // saveImage(resizedImage);
+        // TODO: 리사이즈된 이미지로 추가 작업 수행
+        
+  }
+}
+//이미지 저장
+// void saveImage(imageLib.Image image) async {
+//   final directory = await getApplicationDocumentsDirectory(); // 외부 저장소 디렉토리 얻기
+//   if (directory != null) {
+//     final imagePath = '${directory.path}/image.jpg'; // 저장할 파일 경로 생성
+//     var jpg = imageLib.encodeJpg(image);
+//     File(imagePath).writeAsBytesSync(jpg); // 파일 저장
+//     print('저장');
+//   } else {
+//     // 디렉토리가 null이면 처리할 수 없는 오류가 발생한 것입니다.
+//     print('저장소 디렉토리를 찾을 수 없습니다.');
+//   }
+// }
+
+
 
   @override
   Widget build(BuildContext context) {
