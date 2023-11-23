@@ -82,7 +82,24 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     imageLib.Image? convertedImage = ImageUtils.convertCameraImage(cameraImage);
     if (convertedImage != null) {
       convertedImage = img.copyRotate(convertedImage, 270);
-      imageLib.Image resizedImage = imageLib.copyResize(convertedImage, width: 224, height: 224);
+      
+      // 이미지의 중앙을 기준으로 1:1 비율로 잘라냅니다.
+    int width = convertedImage.width;
+    int height = convertedImage.height;
+    int offset = (width - height).abs() ~/ 2;
+    imageLib.Image croppedImage;
+      
+      
+      // 가로가 세로보다 길 경우, 가로를 잘라냅니다.
+    if (width > height) {
+      croppedImage = img.copyCrop(convertedImage, offset, 0, height, height);
+    } else {
+      // 세로가 가로보다 길 경우, 세로를 잘라냅니다.
+      croppedImage = img.copyCrop(convertedImage, 0, offset, width, width);
+    }
+      
+
+      imageLib.Image resizedImage = imageLib.copyResize(croppedImage, width: 224, height: 224);
       
       // 리사이즈한 이미지 저장
       setState(() {
@@ -105,22 +122,22 @@ class TakePictureScreenState extends State<TakePictureScreen> {
         future: _initializeControllerFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
-  return SingleChildScrollView(
-    child: Column(
-      children: [
-        Container(
-          height: 200, // 고정된 높이 지정
-          child: CameraPreview(_controller),
-        ),
-        SizedBox(height: 20),
-        if (_resizedImage != null)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Image.memory(Uint8List.fromList(imageLib.encodeJpg(_resizedImage!))),
-          ),
+            return Column(
+             children: [
+              AspectRatio(
+                aspectRatio: 1,
+                
+                child: CameraPreview(_controller),
+             ),
+            SizedBox(height: 20),
+            if (_resizedImage != null)
+              Padding(
+               padding: const EdgeInsets.all(8.0),
+               child: Image.memory(Uint8List.fromList(imageLib.encodeJpg(_resizedImage!))),
+           ),
       ],
-    ),
-  );
+    );
+ 
 } else {
   return const Center(child: CircularProgressIndicator());
 }
