@@ -99,7 +99,12 @@ class TakePictureScreenState extends State<TakePictureScreen> {
         future: _initializeControllerFuture,
         builder: (context, snapshot) {
            if (snapshot.connectionState == ConnectionState.done) {
-            return CameraPreview(_controller);
+            return Center(
+            child: AspectRatio(
+            aspectRatio: 1,
+            child: CameraPreview(_controller),
+            ),
+            );
           } else {
             return const Center(child: CircularProgressIndicator());
           }
