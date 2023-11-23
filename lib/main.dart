@@ -81,7 +81,22 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     imageLib.Image? convertedImage = ImageUtils.convertCameraImage(cameraImage);
     if (convertedImage != null) {
       convertedImage = img.copyRotate(convertedImage, 270);
-      imageLib.Image resizedImage = imageLib.copyResize(convertedImage, width: 224, height: 224);
+      
+      // 이미지의 중앙을 기준으로 1:1 비율로 잘라냅니다.
+    int width = convertedImage.width;
+    int height = convertedImage.height;
+    int offset = (width - height).abs() ~/ 2;
+    imageLib.Image croppedImage;
+      
+      // 가로가 세로보다 길 경우, 가로를 잘라냅니다.
+    if (width > height) {
+      croppedImage = img.copyCrop(convertedImage, offset, 0, height, height);
+    } else {
+      // 세로가 가로보다 길 경우, 세로를 잘라냅니다.
+      croppedImage = img.copyCrop(convertedImage, 0, offset, width, width);
+    }
+      
+      imageLib.Image resizedImage = imageLib.copyResize(croppedImage, width: 224, height: 224);
       
       
       print("Resized image dimensions: ${resizedImage.width}x${resizedImage.height}");
