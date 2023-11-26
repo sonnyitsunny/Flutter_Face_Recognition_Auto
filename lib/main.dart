@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'dart:async';
-import 'package:image/image.dart' as imageLib;
-import 'image_utils.dart';
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:image/image.dart' as img;
+
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_2/isolate_inference.dart';
+import 'package:flutter_application_2/tflite.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final cameras = await availableCameras();
@@ -33,10 +33,12 @@ class TakePictureScreen extends StatefulWidget {
 class TakePictureScreenState extends State<TakePictureScreen> {
   late CameraController _controller;
   late Future<void> _initializeControllerFuture;
-  Timer? _timer;
   CameraImage? _lastImage; // 마지막으로 스트리밍된 이미지를 저장할 변수
 
-  
+  final classifier = Classifier();
+
+  InferenceResult? inferenceResult;
+  bool isProcessing = false;
 
   @override
   void initState() {
@@ -44,108 +46,74 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     _controller = CameraController(
       widget.camera,
       ResolutionPreset.veryHigh,
+      enableAudio: false,
     );
     _initializeControllerFuture = _controller.initialize();
+    classifier.initialize();
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _timer?.cancel();
+    classifier.close();
     super.dispose();
   }
 
   void _handleCameraStream() {
-    setState(() {
-      if (_controller.value.isStreamingImages) {
-        _controller.stopImageStream();
-        _timer?.cancel();
-      } else {
-        _controller.startImageStream((CameraImage image) {
-          _lastImage = image; // 스트리밍된 마지막 이미지 저장
-        });
-
-        _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-          if (_lastImage != null) {
-              print("Received image frame");
-            processCameraImage(_lastImage!); // 1초마다 마지막으로 받은 이미지 처리
-          }
-        });
-      }
-    });
-  }
-
-
-
-  void processCameraImage(CameraImage cameraImage) {
-    imageLib.Image? convertedImage = ImageUtils.convertCameraImage(cameraImage);
-    if (convertedImage != null) {
-      convertedImage = img.copyRotate(convertedImage, 270);
-      
-      // 이미지의 중앙을 기준으로 1:1 비율로 잘라냅니다.
-    int width = convertedImage.width;
-    int height = convertedImage.height;
-    int offset = (width - height).abs() ~/ 2;
-    imageLib.Image croppedImage;
-      
-      // 가로가 세로보다 길 경우, 가로를 잘라냅니다.
-    if (width > height) {
-      croppedImage = img.copyCrop(convertedImage, offset, 0, height, height);
+    if (_controller.value.isStreamingImages) {
+      _controller.stopImageStream();
     } else {
-      // 세로가 가로보다 길 경우, 세로를 잘라냅니다.
-      croppedImage = img.copyCrop(convertedImage, 0, offset, width, width);
-    }
-      
-      imageLib.Image resizedImage = imageLib.copyResize(croppedImage, width: 224, height: 224);
-      
-      
-      print("Resized image dimensions: ${resizedImage.width}x${resizedImage.height}");
-      // 여기서 리사이즈된 이미지로 추가 작업 수행
+      _controller.startImageStream((CameraImage image) {
+        _lastImage = image; // 스트리밍된 마지막 이미지 저장
+        processCameraImage(_lastImage!);
+      });
     }
   }
 
-
+  Future<void> processCameraImage(CameraImage cameraImage) async {
+    if (!classifier.isInitialized || isProcessing) return;
+    isProcessing = true;
+    inferenceResult = await classifier.inferenceCameraFrame(cameraImage);
+    print("${inferenceResult?.prob}");
+    isProcessing = false;
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('운전자 얼굴인식')),
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-           if (snapshot.connectionState == ConnectionState.done) {
-            return Center(
-            child: AspectRatio(
-            aspectRatio: 1,
-            child: CameraPreview(_controller),
+      body: Column(
+        children: [
+          FutureBuilder<void>(
+            future: _initializeControllerFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                return Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: CameraPreview(_controller),
+                  ),
+                );
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
+            },
+          ),
+          Text(
+            inferenceResult?.prob.toString() ?? 'yet',
+            style: const TextStyle(fontSize: 24, color: Colors.red),
+          ),
+          ElevatedButton(
+            onPressed: _handleCameraStream,
+            child: Text(_controller.value.isStreamingImages ? "정지" : "시작"),
+          ),
+          if (inferenceResult != null)
+            Image.memory(
+              Uint8List.fromList(inferenceResult!.image),
             ),
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
+        ],
       ),
-
-
-      bottomNavigationBar: Container(
-        height: 50.0,
-        child: Center(
-          child: Text(
-            '시스템 시작',
-            style: TextStyle(fontSize: 30, color: Colors.white),
-          ),
-        ),
-      ),
-      floatingActionButton: Padding(
-        padding: EdgeInsets.only(bottom: 50.0),
-        child: FloatingActionButton(
-          onPressed: _handleCameraStream,
-          child: Icon(
-            _controller.value.isStreamingImages ? Icons.stop : Icons.camera_alt,
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }
