@@ -5,6 +5,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_2/isolate_inference.dart';
 import 'package:flutter_application_2/tflite.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+
+
+
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,12 +75,36 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       });
     }
   }
+final audioPlayer = AudioPlayer();
+
+Future<void> playSound(String label) async {
+  switch (label) {
+    case '응급상황':
+      audioPlayer.play(AssetSource('sounds/negative.mp3')); // AudioCache를 사용하여 오디오 재생
+      break;
+    case '전방주시태만':
+      audioPlayer.play(AssetSource('sounds/negative.mp3'));
+      break;
+    case '졸음주의':
+      audioPlayer.play(AssetSource('sounds/negative.mp3'));
+      break;
+    // 기타 레이블에 대한 케이스
+    default:
+      // 아무 소리도 재생하지 않음
+      break;
+  }
+}
+
 
   Future<void> processCameraImage(CameraImage cameraImage) async {
     if (!classifier.isInitialized || isProcessing) return;
     isProcessing = true;
     inferenceResult = await classifier.inferenceCameraFrame(cameraImage);
     print('${inferenceResult?.label}');
+    if (inferenceResult != null && inferenceResult!.label != null) {
+    playSound(inferenceResult!.label);
+  }
+    
     isProcessing = false;
     setState(() {});
   }
@@ -93,6 +123,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       return Colors.white; // 기본 색상
   }
 }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
