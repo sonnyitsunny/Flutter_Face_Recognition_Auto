@@ -74,11 +74,25 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     if (!classifier.isInitialized || isProcessing) return;
     isProcessing = true;
     inferenceResult = await classifier.inferenceCameraFrame(cameraImage);
-    print("${inferenceResult?.prob}");
+    print('${inferenceResult?.label}');
     isProcessing = false;
     setState(() {});
   }
 
+  Color _getTextColor(String? label) {
+  switch (label) {
+    case '정상':
+      return Colors.green;
+    case '전방주시태만':
+      return Colors.red;
+    case '응급상황':
+      return Colors.red;
+    case '졸음주의':
+      return Colors.red;
+    default:
+      return Colors.white; // 기본 색상
+  }
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,8 +115,9 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             },
           ),
           Text(
-            inferenceResult?.prob.toString() ?? 'yet',
-            style: const TextStyle(fontSize: 24, color: Colors.red),
+            inferenceResult?.label ?? '시스템 대기',
+            style: TextStyle(fontSize: 24, color:_getTextColor(inferenceResult?.label),
+            ),
           ),
           ElevatedButton(
             onPressed: _handleCameraStream,

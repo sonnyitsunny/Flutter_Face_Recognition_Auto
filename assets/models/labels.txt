@@ -1,4 +1,4 @@
-distracted
-emergency
-normal
-sleepy
+전방주시태만
+응급상황
+정상
+졸음주의
